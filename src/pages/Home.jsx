@@ -1,14 +1,16 @@
-import React from 'react'
+import React, { use } from 'react'
 import '../App.css'
 import { getallmetals } from './mock'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 const Home = () => {
     const navigate = useNavigate();
+    const [baseMetals, setBaseMetals] = useState([]);
     const [metals, setMetals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [hoverid, setHoverid] = useState(null);
     const [grid, setGrid] = useState(true);
+    const [search, setSearch] = useState("");
     const sortOptions = [
         { label: <>Name <i className="fa-solid fa-up-long" style={{ paddingLeft: "5px" }}></i></>, value: "name-asc" },
         { label: <>Name <i className="fa-solid fa-down-long" style={{ paddingLeft: "5px" }}></i></>, value: "name-desc" },
@@ -21,22 +23,15 @@ const Home = () => {
         setLoading(true);
         const timer = setTimeout(() => {
             const data = [...getallmetals()].map(m => ({ ...m, profit: Number(((m.price - m.open) / m.open * 100).toFixed(2)) }));
-            const sorted = [...data].sort((a, b) => {
-                const option = sortOptions[sortIndex].value;
-                if (option === "name-asc") return a.name.localeCompare(b.name);
-                if (option === "name-desc") return b.name.localeCompare(a.name);
-                if (option === "price-asc") return a.price - b.price;
-                if (option === "price-desc") return b.price - a.price;
-            });
-            setMetals(sorted);
+            setBaseMetals(data);
             setLoading(false);
         }, 1000);
         return () => clearTimeout(timer);
-    }, [sortIndex]);
+    }, []);
 
     useEffect(() => {
         const interval = setInterval(() => {
-            setMetals(prev =>
+            setBaseMetals(prev =>
                 prev.map(m => {
                     const newPrice = m.price + (Math.random() > 0.5 ? 1.32 : -1.54);
                     return {
@@ -49,6 +44,25 @@ const Home = () => {
         }, 6000);
         return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+        let filtered = [...baseMetals];
+        
+        if (search.trim() !== "") {
+            filtered = filtered.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
+        }
+        
+        filtered.sort((a, b) => {
+            const option = sortOptions[sortIndex].value;
+            if (option === "name-asc") return a.name.localeCompare(b.name);
+            if (option === "name-desc") return b.name.localeCompare(a.name);
+            if (option === "price-asc") return a.price - b.price;
+            if (option === "price-desc") return b.price - a.price;
+        });
+        
+        setMetals(filtered);
+    }, [search, sortIndex, baseMetals]);
+
     return (
         <div className='home-container'>
             <div>
@@ -59,7 +73,7 @@ const Home = () => {
                 </p>
             </div>
             <div className="filters">
-                <input type="text" placeholder="Search metals..." />
+                <input type="text" placeholder="Search metals..." onChange={(e) => setSearch(e.target.value)} />
                 <button onClick={() => setSortIndex((prev) => (prev + 1) % sortOptions.length)}>
                     {sortOptions[sortIndex].label}
                 </button>
@@ -103,6 +117,12 @@ const Home = () => {
                             <div className="loading-text" style={{ width: "100%", height: "30px", marginTop: "12px" }}></div>
                         </div>
                     ))
+                ) : metals.length === 0 && search.trim() !== "" ? (
+                    <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px 20px" }}>
+                        <p style={{ fontSize: "1.2rem", color: "#555", fontWeight: "500" }}>
+                            No metal available with name "<strong>{search}</strong>"
+                        </p>
+                    </div>
                 ) : (
                     metals?.map((metal) => (
                         <div className="card" key={metal.id} style={{ border: "2px solid white", backgroundColor: hoverid === metal.id ? `${metal.color}20` : "white", borderTop: `4px solid ${metal.color}` }} onMouseEnter={() => setHoverid(metal.id)} onMouseLeave={() => setHoverid(null)}>
